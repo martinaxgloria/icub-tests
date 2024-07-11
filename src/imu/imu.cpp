@@ -193,6 +193,7 @@ void Imu::run()
     ROBOTTESTINGFRAMEWORK_TEST_REPORT("Starting reading IMU orientation values...");
     rpyValues.resize(sensorsList.get(0).asList()->size());
     I_R_I_IMU.resize(sensorsList.get(0).asList()->size());
+    I_R_FK.resize(sensorsList.get(0).asList()->size());
 
     for (int sensorIndex = 0; sensorIndex < sensorsList.get(0).asList()->size(); sensorIndex++)
     {
@@ -202,8 +203,8 @@ void Imu::run()
         ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(iorientation->getOrientationSensorName(sensorIndex, sensorName), "Unable to obtain sensor name.");
         ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(iorientation->getOrientationSensorMeasureAsRollPitchYaw(sensorIndex, rpyValues[sensorIndex], timestamp), "Unable to obtain rpy measurements.");
         ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(iorientation->getOrientationSensorFrameName(sensorIndex, frameName), "Unable to obtain frame name.");
-        iDynTree::Rotation I_R_FK = kinDynComp.getWorldTransform(frameName).getRotation(); 
-        I_R_I_IMU[sensorIndex] = (I_R_FK * ((iDynTree::Rotation::RPY(iDynTree::deg2rad(rpyValues[sensorIndex][0]), iDynTree::deg2rad(rpyValues[sensorIndex][1]), iDynTree::deg2rad(rpyValues[sensorIndex][2]))).inverse()));    
+        I_R_FK[sensorIndex] = kinDynComp.getWorldTransform(frameName).getRotation();
+        I_R_I_IMU[sensorIndex] = iDynTree::Rotation::RPY(iDynTree::deg2rad(rpyValues[sensorIndex][0]), iDynTree::deg2rad(rpyValues[sensorIndex][1]), iDynTree::deg2rad(rpyValues[sensorIndex][2]));
     }
 
     setupBrokers();
@@ -246,8 +247,8 @@ bool Imu::startMove()
             ds,
             gravity);
 
-            iDynTree::Rotation expectedImuSignal = kinDynComp.getWorldTransform(frameName).getRotation();
-            iDynTree::Rotation imuSignal = (I_R_I_IMU[sensorIndex] * iDynTree::Rotation::RPY(iDynTree::deg2rad(rpyValues[sensorIndex][0]), iDynTree::deg2rad(rpyValues[sensorIndex][1]), iDynTree::deg2rad(rpyValues[sensorIndex][2]))); 
+            iDynTree::Rotation expectedImuSignal = (I_R_FK[sensorIndex]).inverse() * (kinDynComp.getWorldTransform(frameName).getRotation());
+            iDynTree::Rotation imuSignal = (I_R_I_IMU[sensorIndex]).inverse() * (iDynTree::Rotation::RPY(iDynTree::deg2rad(rpyValues[sensorIndex][0]), iDynTree::deg2rad(rpyValues[sensorIndex][1]), iDynTree::deg2rad(rpyValues[sensorIndex][2]))); 
             error = (expectedImuSignal * imuSignal.inverse()).log();
 
             bufferManager.push_back(positions, "joints_state::positions");

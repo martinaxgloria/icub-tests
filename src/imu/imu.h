@@ -78,6 +78,7 @@ class Imu : public yarp::robottestingframework::TestCase {
         iDynTree::Twist baseVelocity;
         iDynTree::Transform I_T_base;
         std::vector<iDynTree::Rotation> I_R_I_IMU;
+        std::vector<iDynTree::Rotation> I_R_FK;
 
         robometry::BufferManager bufferManager;
 
