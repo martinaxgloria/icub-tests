@@ -89,6 +89,7 @@ bool Imu::setup(yarp::os::Property& property)
     MASclientOptions.put("device", "multipleanalogsensorsclient");
     MASclientOptions.put("remote", portName);
     MASclientOptions.put("local", "/imuTest"+portName);
+    MASclientOptions.put("timeout", 1.0);
 
     ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(MASclientDriver.open(MASclientOptions), "Unable to open the MAS client driver");
     ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(MASclientDriver.isValid(), "Device driver cannot be opened");
@@ -203,6 +204,12 @@ void Imu::run()
         ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(iorientation->getOrientationSensorName(sensorIndex, sensorName), "Unable to obtain sensor name.");
         ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(iorientation->getOrientationSensorMeasureAsRollPitchYaw(sensorIndex, rpyValues[sensorIndex], timestamp), "Unable to obtain rpy measurements.");
         ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(iorientation->getOrientationSensorFrameName(sensorIndex, frameName), "Unable to obtain frame name.");
+        
+        if (rpyValues[sensorIndex][2] > 180.0)
+        {
+            rpyValues[sensorIndex][2] = rpyValues[sensorIndex][2] - 360.0;
+        }
+        
         I_R_FK[sensorIndex] = kinDynComp.getWorldTransform(frameName).getRotation();
         I_R_I_IMU[sensorIndex] = iDynTree::Rotation::RPY(iDynTree::deg2rad(rpyValues[sensorIndex][0]), iDynTree::deg2rad(rpyValues[sensorIndex][1]), iDynTree::deg2rad(rpyValues[sensorIndex][2]));
     }
@@ -231,6 +238,11 @@ bool Imu::startMove()
             ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(iorientation->getOrientationSensorMeasureAsRollPitchYaw(sensorIndex, rpyValues[sensorIndex], timestamp), "Unable to obtain rpy measurements.");
             ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(iorientation->getOrientationSensorFrameName(sensorIndex, frameName), "Unable to obtain frame name.");
 
+            if (rpyValues[sensorIndex][2] > 180.0)
+            {
+                rpyValues[sensorIndex][2] = rpyValues[sensorIndex][2] - 360.0;
+            }
+            
             ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(ienc->getEncoders(positions.data()), "Cannot get joint positions");
             ROBOTTESTINGFRAMEWORK_ASSERT_ERROR_IF_FALSE(ienc->getEncoderSpeeds(velocities.data()), "Cannot get joint velocities");
 
@@ -287,8 +299,9 @@ bool Imu::setupRobometry()
     bufferConfig.yarp_robot_name = std::getenv("YARP_ROBOT_NAME");
     bufferConfig.filename = "test_imu";
     bufferConfig.file_indexing = "%Y_%m_%d_%H_%M_%S";
-    bufferConfig.n_samples = 100000;
-    
+    bufferConfig.n_samples = 10000000;
+    bufferConfig.description_list = axesVec;
+
     bufferManager.addChannel({"joints_state::positions", {axesVec.size(), 1}, axesVec});
     bufferManager.addChannel({"joints_state::velocities", {axesVec.size(), 1}, axesVec});
 
